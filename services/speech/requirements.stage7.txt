@@ -1,0 +1,7 @@
+# Stage 7 will confirm and install these in a dedicated Python 3.11/3.12 environment.
+# Do not install these during Stage 6.
+faster-whisper
+av>=11,<19
+numpy
+soundcard
+sounddevice

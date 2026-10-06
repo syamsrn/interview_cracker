@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+.venv-speech/
+__pycache__/
+*.py[cod]
+*.log
+*.tsbuildinfo
+interview-coach-gemini-key.json
+.DS_Store

@@ -1,0 +1,83 @@
+{
+  "name": "interview_app",
+  "version": "1.0.0",
+  "description": "Private local-first desktop mock-interview training application.",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "node scripts/electron-vite.mjs dev",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "build": "npm run typecheck && node scripts/electron-vite.mjs build",
+    "test:gemini": "node scripts/run-gemini-smoke.mjs",
+    "preview": "node scripts/electron-vite.mjs preview",
+    "package": "npm run build && electron-builder --dir",
+    "package:win": "npm run build && electron-builder --win portable",
+    "package:mac": "npm run build && electron-builder --mac dmg zip",
+    "start:packaged": "node scripts/run-packaged.mjs"
+  },
+  "keywords": [
+    "electron",
+    "react",
+    "typescript",
+    "vite"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true,
+  "build": {
+    "appId": "com.interviewcoach.app",
+    "productName": "Interview Coach",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "services/speech",
+        "to": "services/speech",
+        "filter": [
+          "**/*",
+          "!__pycache__/**"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Interview-Coach-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "category": "public.app-category.education",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "Interview-Coach-${version}-${arch}.${ext}"
+    }
+  },
+  "dependencies": {
+    "@google/genai": "^2.19.0",
+    "pdf-parse": "^2.4.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6"
+  }
+}
