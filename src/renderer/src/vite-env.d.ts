@@ -38,6 +38,9 @@ declare global {
         minimize: () => Promise<void>;
         hide: () => Promise<void>;
         toggle: () => Promise<void>;
+        toggleProtection: () => Promise<boolean>;
+        getProtectionStatus: () => Promise<boolean>;
+        onProtectionStatusChange: (callback: (isEnabled: boolean) => void) => void;
       };
       ai: {
         getDefaultProviderInfo: () => Promise<AIProviderInfo>;

@@ -30,6 +30,7 @@ const OVERLAY_HEIGHT = 520;
 const OVERLAY_MARGIN = 24;
 
 let mainWindow: BrowserWindow | null = null;
+let protectionEnabled = true;
 let isQuitting = false;
 const speechService = new SpeechService();
 
@@ -85,7 +86,7 @@ function createMainWindow(): void {
     transparent: true,
     resizable: true,
     alwaysOnTop: true,
-    skipTaskbar: false,
+    skipTaskbar: true,
     hasShadow: true,
     show: false,
     backgroundColor: '#00000000',
@@ -96,6 +97,9 @@ function createMainWindow(): void {
       sandbox: true
     }
   });
+
+  mainWindow.setSkipTaskbar(true);
+  mainWindow.setContentProtection(protectionEnabled);
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
@@ -153,9 +157,18 @@ function registerIpcHandlers(
     mainWindow?.hide();
   });
 
+
   ipcMain.handle('overlay:toggle', () => {
     toggleOverlayVisibility();
   });
+
+  ipcMain.handle('overlay:toggle-protection', () => {
+    protectionEnabled = !protectionEnabled;
+    mainWindow?.setContentProtection(protectionEnabled);
+    return protectionEnabled;
+  });
+
+  ipcMain.handle('overlay:get-protection-status', () => protectionEnabled);
 
   registerAIIpcHandlers(aiService);
   registerGeminiIpcHandlers(geminiSecretStore);
@@ -193,6 +206,16 @@ if (hasSingleInstanceLock) {
 
   if (!shortcutRegistered) {
     console.warn('[main] Unable to register Ctrl+Shift+I overlay shortcut.');
+  }
+
+  const protectionShortcutRegistered = globalShortcut.register('CommandOrControl+Shift+H', () => {
+  protectionEnabled = !protectionEnabled;
+  mainWindow?.setContentProtection(protectionEnabled);
+  mainWindow?.webContents.send('protection-status-changed', protectionEnabled);
+  });
+
+  if (!protectionShortcutRegistered) {
+    console.warn('[main] Unable to register Ctrl+Shift+H protection shortcut.');
   }
 
   app.on('activate', () => {

@@ -39,7 +39,7 @@ select:focus-visible {
 .overlay-shell {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
   width: 100vw;
   height: 100vh;
   opacity: var(--overlay-opacity, 0.92);
@@ -109,6 +109,18 @@ select:focus-visible {
 
 .overlay-shell.settings-mode {
   grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.settings-mode .titlebar {
+  grid-row: 1;
+}
+
+.settings-mode .control-strip {
+  grid-row: 2;
+}
+
+.settings-mode .settings-panel {
+  grid-row: 3;
 }
 
 .titlebar {
@@ -186,14 +198,31 @@ select:focus-visible {
 
 .window-actions button {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
   place-items: center;
   border: 1px solid transparent;
   border-radius: 8px;
   color: #cbd5e1;
   background: transparent;
   cursor: pointer;
+}
+
+.window-actions .protection-toggle {
+  width: 42px;
+  flex: 0 0 42px;
+  border-color: rgb(85 209 135 / 38%);
+  color: #b7f7cf;
+  background: rgb(22 101 52 / 38%);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.window-actions .protection-toggle.unprotected {
+  border-color: rgb(251 191 36 / 42%);
+  color: #fde68a;
+  background: rgb(120 53 15 / 42%);
 }
 
 .window-actions button:hover {
@@ -209,6 +238,7 @@ select:focus-visible {
 }
 
 .control-strip {
+  grid-row: 3;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   min-width: 0;
@@ -246,7 +276,7 @@ select:focus-visible {
 
 .more-menu summary {
   display: flex;
-  min-height: 30px;
+  min-height: 34px;
   align-items: center;
   justify-content: center;
   border: 1px solid rgb(148 163 184 / 20%);
@@ -307,7 +337,7 @@ select:focus-visible {
 
 .more-menu-panel button {
   width: 100%;
-  min-height: 30px;
+  min-height: 34px;
   border: 0;
   border-radius: 7px;
   padding: 0 8px;
@@ -353,8 +383,8 @@ select:focus-visible {
 }
 
 .control-strip button {
-  min-height: 30px;
-  padding: 0 11px;
+  min-height: 34px;
+  padding: 0 10px;
 }
 
 .control-strip button:hover,
@@ -380,7 +410,8 @@ select:focus-visible {
 }
 
 .segmented-control button {
-  min-width: 58px;
+  min-width: 62px;
+  min-height: 34px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -673,8 +704,9 @@ select:focus-visible {
 }
 
 .content-grid {
+  grid-row: 1;
   display: grid;
-  grid-template-rows: minmax(40px, auto) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(40px, auto);
   min-height: 0;
   overflow: hidden;
   padding: 9px 14px 6px;
@@ -682,7 +714,7 @@ select:focus-visible {
 }
 
 .content-grid.safety-content-grid {
-  grid-template-rows: auto minmax(44px, auto) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto minmax(44px, auto);
 }
 
 .safety-session-panel {
@@ -782,7 +814,7 @@ select:focus-visible {
 
 .answer-block {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
   overflow: hidden;
 }
@@ -798,16 +830,17 @@ select:focus-visible {
   justify-content: flex-start;
   gap: 4px;
   align-items: center;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  flex-wrap: wrap;
+  overflow: visible;
+  row-gap: 6px;
+  padding-bottom: 2px;
 }
 
 .answer-actions button {
   flex: 0 0 auto;
-  width: 28px;
-  min-height: 26px;
-  padding: 0 7px;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
 }
 
 .answer-reader {
@@ -831,7 +864,7 @@ select:focus-visible {
 }
 
 .regenerate-select {
-  height: 28px;
+  height: 32px;
   flex: 0 0 86px;
   min-width: 86px;
   max-width: 86px;
@@ -906,6 +939,7 @@ select:focus-visible {
 }
 
 .composer {
+  grid-row: 4;
   display: grid;
   grid-template-columns: 1fr;
   gap: 0;
@@ -1017,6 +1051,7 @@ select:focus-visible {
 .answer-length-select select {
   min-width: 68px;
   width: 68px;
+  height: 32px;
   padding-right: 8px;
 }
 
@@ -1052,13 +1087,13 @@ select:focus-visible {
   }
 
   .segmented-control button {
-    min-width: 44px;
+    min-width: 48px;
     padding-inline: 6px;
   }
 
   .control-strip button,
   .more-menu summary {
-    min-height: 28px;
+    min-height: 32px;
     padding-inline: 7px;
   }
 
@@ -1135,7 +1170,7 @@ select:focus-visible {
 
   .answer-actions {
     justify-content: flex-start;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
 
   .regenerate-select {

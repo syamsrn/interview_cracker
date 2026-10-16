@@ -70,7 +70,12 @@ contextBridge.exposeInMainWorld('interviewApp', {
   window: {
     minimize: () => ipcRenderer.invoke('overlay:minimize'),
     hide: () => ipcRenderer.invoke('overlay:hide'),
-    toggle: () => ipcRenderer.invoke('overlay:toggle')
+    toggle: () => ipcRenderer.invoke('overlay:toggle'),
+    toggleProtection: () => ipcRenderer.invoke('overlay:toggle-protection'),
+    getProtectionStatus: () => ipcRenderer.invoke('overlay:get-protection-status'),
+    onProtectionStatusChange: (callback: (isEnabled: boolean) => void) => {
+      ipcRenderer.on('protection-status-changed', (_event, isEnabled) => callback(isEnabled));
+    }
   },
   ai: {
     getDefaultProviderInfo: (): Promise<AIProviderInfo> => ipcRenderer.invoke('ai:get-default-provider-info'),

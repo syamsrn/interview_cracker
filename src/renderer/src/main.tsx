@@ -116,6 +116,9 @@ interface InterviewAppApi {
     minimize: () => Promise<void>;
     hide: () => Promise<void>;
     toggle: () => Promise<void>;
+    toggleProtection: () => Promise<boolean>;
+    getProtectionStatus: () => Promise<boolean>;
+    onProtectionStatusChange: (callback: (isEnabled: boolean) => void) => void;
   };
   ai: {
     getDefaultProviderInfo: () => Promise<AIProviderInfo>;
@@ -176,7 +179,10 @@ const browserPreviewApi: InterviewAppApi = {
   window: {
     minimize: () => Promise.resolve(),
     hide: () => Promise.resolve(),
-    toggle: () => Promise.resolve()
+    toggle: () => Promise.resolve(),
+    toggleProtection: () => Promise.resolve(true),
+    getProtectionStatus: () => Promise.resolve(true),
+    onProtectionStatusChange: () => {}
   },
   ai: {
     getDefaultProviderInfo: () =>
@@ -275,10 +281,9 @@ const browserPreviewApi: InterviewAppApi = {
         },
         error: 'Use the Electron desktop overlay window launched by npm run dev.'
       }),
-    clearAnswers: () =>
-      Promise.resolve({
-        ok: false,
-        info: {
+    clearAnswers: () => Promise.resolve({
+      ok: false,
+      info: {
           status: 'error',
           message: 'Electron preload is unavailable in the browser preview.',
           recordCount: 0
@@ -564,6 +569,7 @@ function isEditableShortcutTarget(target: EventTarget | null): boolean {
 
 function App(): React.JSX.Element {
   const statusTimerRef = useRef<number | null>(null);
+  const moreMenuRef = useRef<HTMLDetailsElement | null>(null);
   const questionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const answerContentRef = useRef<HTMLDivElement | null>(null);
   const generationInFlightRef = useRef(false);
@@ -571,6 +577,11 @@ function App(): React.JSX.Element {
   const settingsLoadedRef = useRef(false);
   const settingsSaveTimerRef = useRef<number | null>(null);
   const appApi = useMemo(() => getInterviewAppApi(), []);
+  const [isProtected, setIsProtected] = useState(true);
+  useEffect(() => {
+    appApi.window.getProtectionStatus().then(setIsProtected);
+    appApi.window.onProtectionStatusChange(setIsProtected);
+  }, [appApi]);
   const modeRef = useRef<InterviewMode>('MANUAL');
   const answerDetailRef = useRef<AnswerDetail>('normal');
   const transcriptRef = useRef('');
@@ -1606,6 +1617,12 @@ function App(): React.JSX.Element {
     setSettingsOpen((isOpen) => !isOpen);
   }
 
+  function closeMoreMenu(): void {
+    if (moreMenuRef.current) {
+      moreMenuRef.current.open = false;
+    }
+  }
+
   function handleDeleteLocalHistory(): void {
     const shouldDelete = window.confirm('Delete all saved local answer history? This cannot be undone.');
 
@@ -1964,6 +1981,16 @@ function App(): React.JSX.Element {
           </div>
         </div>
         <div className="window-actions" aria-label="Window controls">
+          <button
+            type="button"
+            className={`protection-toggle ${isProtected ? 'protected' : 'unprotected'}`}
+            aria-label={isProtected ? "Screen share protection on" : "Screen share protection off"}
+            aria-pressed={isProtected}
+            onClick={() => appApi.window.toggleProtection().then(setIsProtected)}
+            title={isProtected ? "Hidden from screen share" : "Visible in screen share"}
+          >
+            {isProtected ? 'ON' : 'OFF'}
+          </button>
           <button type="button" aria-label="Minimize" onClick={() => appApi.window.minimize()}>
             -
           </button>
@@ -1972,64 +1999,6 @@ function App(): React.JSX.Element {
           </button>
         </div>
       </header>
-
-      <nav className="control-strip" aria-label="Interview controls">
-        <div className="segmented-control" aria-label="Response mode">
-          <button
-            type="button"
-            className={mode === 'AUTO' ? 'selected' : ''}
-            aria-pressed={mode === 'AUTO'}
-            onClick={() => setMode('AUTO')}
-          >
-            AUTO
-          </button>
-          <button
-            type="button"
-            className={mode === 'MANUAL' ? 'selected' : ''}
-            aria-pressed={mode === 'MANUAL'}
-            onClick={() => setMode('MANUAL')}
-          >
-            MANUAL
-          </button>
-        </div>
-
-        <button
-          type="button"
-          className={`listen-button ${isSpeechActive ? 'listening' : ''}`}
-          onClick={isSpeechActive ? handleStopListening : handleStartListening}
-        >
-          <span className="listen-label-full">
-            {isSpeechActive
-              ? 'Stop listening'
-              : speechSource === 'system-audio'
-                ? 'Start system audio'
-                : 'Start listening'}
-          </span>
-          <span className="listen-label-compact">{isSpeechActive ? 'Stop' : 'Listen'}</span>
-        </button>
-        <details className="more-menu">
-          <summary>More</summary>
-          <div className="more-menu-panel">
-            <label className="opacity-control">
-              <span>Opacity {Math.round(overlayOpacity * 100)}%</span>
-              <input
-                type="range"
-                min="0.45"
-                max="1"
-                step="0.05"
-                value={overlayOpacity}
-                onChange={(event) => setOverlayOpacity(Number(event.target.value))}
-              />
-            </label>
-            <button type="button" onClick={handleClear}>
-              Clear session
-            </button>
-            <button type="button" aria-keyshortcuts="Control+," onClick={toggleSettings}>
-              Settings
-            </button>
-          </div>
-        </details>
-      </nav>
 
       {errorNotice ? (
         <section className="error-notice" role="alert" aria-label="Recoverable error">
@@ -2450,39 +2419,53 @@ function App(): React.JSX.Element {
       {!settingsOpen ? (
         <>
           <section className={`content-grid ${screenShareSafetyEnabled ? 'safety-content-grid' : ''}`}>
-            {screenShareSafetyEnabled ? (
-              <div className="safety-session-panel" aria-label="Screen-sharing safety notice">
-                <div>
-                  <strong>Screen-sharing safety on</strong>
-                  <span>Practice scope active. Private local paths are hidden in Settings.</span>
-                </div>
-                <button type="button" onClick={() => appApi.window.hide()}>
-                  Hide Overlay
-                </button>
-              </div>
-            ) : null}
-            <div className="section-block question-block" aria-label="Live question">
-              <h2>{isSpeechActive ? 'LIVE QUESTION' : 'CURRENT QUESTION'}</h2>
-              <p>{transcript || questionPreview}</p>
-              {status === 'Listening' || status === 'Transcribing' ? (
-                <small className={`detection-note ${speechSignalLevel >= 0.00005 ? 'detected' : ''}`}>
-                  {speechSignalLevel >= 0.00005
-                    ? 'Audio signal detected. Transcript should appear shortly.'
-                    : speechSource === 'system-audio'
-                      ? 'No system-audio signal yet. Play sound through the active Windows speaker.'
-                      : 'No microphone signal yet. For a video, select System Audio in Settings.'}
-                </small>
-              ) : null}
-              {questionDetection ? (
-                <small className={`detection-note ${questionDetection.isQuestion ? 'detected' : ''}`}>
-                  {questionDetection.isQuestion
-                    ? `Detected question (${questionDetection.confidence})`
-                    : 'No clear question detected'}
-                </small>
-              ) : null}
-            </div>
-
             <div className="section-block answer-block">
+              <div
+                className="answer-reader"
+                ref={answerContentRef}
+                onScroll={(event) => {
+                  const element = event.currentTarget;
+                  const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+
+                  if (distanceFromBottom <= 8) {
+                    setAnswerFullyRead(true);
+                  }
+                }}
+              >
+                <pre>{answer}</pre>
+                {answerFullyRead && followUpQuestions.length ? (
+                  <section className="follow-up-panel" aria-label="Likely follow-up questions">
+                    <h3>LIKELY FOLLOW-UPS</h3>
+                    <div className="follow-up-list">
+                      {followUpQuestions.map((followUpQuestion) => (
+                        <button
+                          key={followUpQuestion}
+                          type="button"
+                          onClick={() => handleUseFollowUp(followUpQuestion)}
+                        >
+                          {followUpQuestion}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+                {answerFullyRead ? (
+                  <div className="history-meta">
+                    {historyIndex >= 0 ? (
+                      <span>
+                        {historyIndex + 1} / {history.length} - {history[historyIndex]?.category.toUpperCase()} -{' '}
+                        {history[historyIndex]?.createdAt}
+                      </span>
+                    ) : (
+                      <span>
+                        {mode} mode - {providerInfo.name}: {providerInfo.status} - memory {memoryEnabled ? history.length : 'off'} -
+                        resume {resumeProfileEnabled ? (resumeProfileInfo.hasProfile ? 'saved' : 'empty') : 'off'} - knowledge{' '}
+                        {personalKnowledgeEnabled ? knowledgeDatabaseInfo.snippetCount : 'off'}
+                      </span>
+                    )}
+                  </div>
+                ) : null}
+              </div>
               <div className="answer-heading">
                 <h2>ANSWER</h2>
                 <div className="answer-actions">
@@ -2544,77 +2527,131 @@ function App(): React.JSX.Element {
                   </button>
                 </div>
               </div>
-              <div
-                className="answer-reader"
-                ref={answerContentRef}
-                onScroll={(event) => {
-                  const element = event.currentTarget;
-                  const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+            </div>
 
-                  if (distanceFromBottom <= 8) {
-                    setAnswerFullyRead(true);
-                  }
-                }}
-              >
-                <pre>{answer}</pre>
-                {answerFullyRead && followUpQuestions.length ? (
-                  <section className="follow-up-panel" aria-label="Likely follow-up questions">
-                    <h3>LIKELY FOLLOW-UPS</h3>
-                    <div className="follow-up-list">
-                      {followUpQuestions.map((followUpQuestion) => (
-                        <button
-                          key={followUpQuestion}
-                          type="button"
-                          onClick={() => handleUseFollowUp(followUpQuestion)}
-                        >
-                          {followUpQuestion}
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-                {answerFullyRead ? <div className="history-meta">
-                  {historyIndex >= 0 ? (
-                    <span>
-                      {historyIndex + 1} / {history.length} - {history[historyIndex]?.category.toUpperCase()} -{' '}
-                      {history[historyIndex]?.createdAt}
-                    </span>
-                  ) : (
-                    <span>
-                      {mode} mode - {providerInfo.name}: {providerInfo.status} - memory {memoryEnabled ? history.length : 'off'} -
-                      resume {resumeProfileEnabled ? (resumeProfileInfo.hasProfile ? 'saved' : 'empty') : 'off'} - knowledge{' '}
-                      {personalKnowledgeEnabled ? knowledgeDatabaseInfo.snippetCount : 'off'}
-                    </span>
-                  )}
-                </div> : null}
+            {screenShareSafetyEnabled ? (
+              <div className="safety-session-panel" aria-label="Screen-sharing safety notice">
+                <div>
+                  <strong>Screen-sharing safety on</strong>
+                  <span>Practice scope active. Private local paths are hidden in Settings.</span>
+                </div>
+                <button type="button" onClick={() => appApi.window.hide()}>
+                  Hide Overlay
+                </button>
               </div>
+            ) : null}
+
+            <div className="section-block question-block" aria-label="Live question">
+              <h2>{isSpeechActive ? 'LIVE QUESTION' : 'CURRENT QUESTION'}</h2>
+              <p>{transcript || questionPreview}</p>
+              {status === 'Listening' || status === 'Transcribing' ? (
+                <small className={`detection-note ${speechSignalLevel >= 0.00005 ? 'detected' : ''}`}>
+                  {speechSignalLevel >= 0.00005
+                    ? 'Audio signal detected. Transcript should appear shortly.'
+                    : speechSource === 'system-audio'
+                      ? 'No system-audio signal yet. Play sound through the active Windows speaker.'
+                      : 'No microphone signal yet. For a video, select System Audio in Settings.'}
+                </small>
+              ) : null}
+              {questionDetection ? (
+                <small className={`detection-note ${questionDetection.isQuestion ? 'detected' : ''}`}>
+                  {questionDetection.isQuestion
+                    ? `Detected question (${questionDetection.confidence})`
+                    : 'No clear question detected'}
+                </small>
+              ) : null}
             </div>
           </section>
-
-          <footer className="composer">
-            <div className="composer-row">
-                <textarea
-                  ref={questionInputRef}
-                  aria-label="Type an interview question"
-                  placeholder="Type an interview question..."
-                  value={question}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                      event.preventDefault();
-                      handleGenerate();
-                    }
-                  }}
-                  onChange={(event) => {
-                    setTranscript('');
-                    setQuestion(event.target.value);
-                }}
-              />
-              <button type="button" disabled={!canGenerate} aria-keyshortcuts="Control+Enter" onClick={handleGenerate}>
-                {isGenerating ? 'Generating...' : 'Generate'}
-              </button>
-            </div>
-          </footer>
         </>
+      ) : null}
+
+      <nav className="control-strip" aria-label="Interview controls">
+        <div className="segmented-control" aria-label="Response mode">
+          <button
+            type="button"
+            className={mode === 'AUTO' ? 'selected' : ''}
+            aria-pressed={mode === 'AUTO'}
+            onClick={() => setMode('AUTO')}
+          >
+            AUTO
+          </button>
+          <button
+            type="button"
+            className={mode === 'MANUAL' ? 'selected' : ''}
+            aria-pressed={mode === 'MANUAL'}
+            onClick={() => setMode('MANUAL')}
+          >
+            MANUAL
+          </button>
+        </div>
+        <button
+          type="button"
+          className={`listen-button ${isSpeechActive ? 'listening' : ''}`}
+          onClick={isSpeechActive ? handleStopListening : handleStartListening}
+        >
+          <span className="listen-label-full">
+            {isSpeechActive
+              ? 'Stop listening'
+              : speechSource === 'system-audio'
+                ? 'Start system audio'
+                : 'Start listening'}
+          </span>
+          <span className="listen-label-compact">{isSpeechActive ? 'Stop' : 'Listen'}</span>
+        </button>
+        <details ref={moreMenuRef} className="more-menu">
+          <summary>More</summary>
+          <div className="more-menu-panel">
+            <label className="opacity-control">
+              <span>Opacity {Math.round(overlayOpacity * 100)}%</span>
+              <input
+                type="range"
+                min="0.45"
+                max="1"
+                step="0.05"
+                value={overlayOpacity}
+                onChange={(event) => setOverlayOpacity(Number(event.target.value))}
+              />
+            </label>
+            <button type="button" onClick={() => {
+              closeMoreMenu();
+              handleClear();
+            }}>
+              Clear session
+            </button>
+            <button type="button" aria-keyshortcuts="Control+," onClick={() => {
+              closeMoreMenu();
+              toggleSettings();
+            }}>
+              Settings
+            </button>
+          </div>
+        </details>
+      </nav>
+
+      {!settingsOpen ? (
+        <footer className="composer">
+          <div className="composer-row">
+            <textarea
+              ref={questionInputRef}
+              aria-label="Type an interview question"
+              placeholder="Type an interview question..."
+              value={question}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  handleGenerate();
+                }
+              }}
+              onChange={(event) => {
+                setTranscript('');
+                setQuestion(event.target.value);
+              }}
+            />
+            <button type="button" disabled={!canGenerate} aria-keyshortcuts="Control+Enter" onClick={handleGenerate}>
+              {isGenerating ? 'Generating...' : 'Generate'}
+            </button>
+          </div>
+        </footer>
       ) : null}
     </main>
   );
